@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
-import Joi from 'joi';
+import { UserModule } from './user/user.module';
+import * as Joi from 'joi';
 
 @Module({
   imports: [
@@ -18,8 +19,21 @@ import Joi from 'joi';
       },
       ),
     }),
-    DatabaseModule,
+    DatabaseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => (
+        {
+          host: configService.get('DB_HOST')!,
+          port: configService.get('DB_PORT')!,
+          user: configService.get('DB_USER')!,
+          password: configService.get('DB_PASSWORD')!,
+          database: configService.get('DB_NAME')!,
+        }
+      ),
+    }),
     AuthModule,
+    UserModule,
   ],
 
 })
