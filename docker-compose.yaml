@@ -1,0 +1,22 @@
+version: "3"
+services:
+
+  inventboost_db:
+    container_name: inventboost_db
+    image: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - /data/inventboost_db:/data/postgres
+
+    environment:
+      POSTGRES_DB: inventboost
+      POSTGRES_USER: inventboost
+      POSTGRES_PASSWORD: inventboost
+
+    networks:
+      - postgres
+
+networks:
+  postgres:
+    driver: bridge

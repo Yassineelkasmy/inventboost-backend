@@ -8,6 +8,9 @@ export const users = pgTable('users', {
     fullName: varchar('first_name', { length: 255 }).notNull(),
     accessCode: varchar('access_code', { length: 255 }).notNull(),
     phoneNumber: varchar('phone_number', { length: 20 }).notNull(),
+    memberId: varchar('member_id'),
+    groupNumber: varchar('group_number'),
+    benefitCard: varchar('group_number'),
     providerId: uuid('provider_id').references(() => providers.id, { onDelete: 'set null' }), // Foreign key
     createdAt: timestamp('created_at', { withTimezone: true })
         .default(sql`CURRENT_TIMESTAMP`)
