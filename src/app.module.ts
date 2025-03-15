@@ -4,6 +4,8 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import * as Joi from 'joi';
+import { CacheModule } from '@nestjs/cache-manager';
+import { RedisOptions } from './configs/app-options';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import * as Joi from 'joi';
         DB_USER: Joi.string().required(),
         DB_PASSWORD: Joi.string().required(),
         DB_NAME: Joi.string().required(),
+        REDIS_PORT: Joi.number().required(),
+        REDIS_HOST: Joi.string().required(),
       },
       ),
     }),
@@ -32,6 +36,7 @@ import * as Joi from 'joi';
         }
       ),
     }),
+    CacheModule.registerAsync(RedisOptions),
     AuthModule,
     UserModule,
   ],
