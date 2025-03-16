@@ -6,6 +6,9 @@ import { UserModule } from './user/user.module';
 import * as Joi from 'joi';
 import { CacheModule } from '@nestjs/cache-manager';
 import { RedisOptions } from './configs/app-options';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ResponseFormatInterceptor } from './response/response.interceptor';
+import { ProviderModule } from './provider/provider.module';
 
 @Module({
   imports: [
@@ -39,7 +42,14 @@ import { RedisOptions } from './configs/app-options';
     CacheModule.registerAsync(RedisOptions),
     AuthModule,
     UserModule,
+    ProviderModule,
   ],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ResponseFormatInterceptor,
+    },
+  ]
 
 })
 export class AppModule { }

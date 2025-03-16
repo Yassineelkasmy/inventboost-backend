@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { eq } from 'drizzle-orm';
 import { RequestUser } from 'src/auth/auth.types';
 import { FirebaseService } from 'src/auth/firebase.service';
 import { databaseSchema } from 'src/database/database.schema';
@@ -14,6 +15,12 @@ interface CreateUserParams {
     requestUser?: RequestUser
 }
 
+interface AddUserBenefitsDetailsParams {
+    uid: string
+    provider: string
+    memberId: string
+    groupNumber: string
+}
 @Injectable()
 export class UserService {
     constructor(
@@ -49,7 +56,36 @@ export class UserService {
             return user
 
         } catch (error) {
+            console.log(error)
+            throw new InternalServerErrorException()
+        }
+    }
 
+
+    async getUserByExtAuthId(extAuthId: string) {
+        const user = await this.drizzleService.db.query.users.findFirst({ where: (fields, { eq }) => eq(fields.extAuthId, extAuthId) })
+        if (!user) {
+            throw new NotFoundException()
+        }
+        return user
+    }
+
+
+    async addBenefitsDeatails(params: AddUserBenefitsDetailsParams) {
+        try {
+            const [updatedUser] = await this.drizzleService.db.update(databaseSchema.users)
+                .set({
+                    providerId: params.provider,
+                    groupNumber: params.groupNumber,
+                    memberId: params.memberId,
+                })
+                .where(eq(databaseSchema.users.extAuthId, params.uid))
+                .returning()
+
+            return updatedUser
+
+        } catch (e) {
+            console.log(e)
         }
     }
 
