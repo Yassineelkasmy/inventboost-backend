@@ -37,12 +37,16 @@ export class UserService {
     ) {
         this.bucketName = this.configService.get<string>('AWS_BUCKET_NAME')!;
         this.s3Client = new S3Client({
-            region: this.configService.get<string>('AWS_REGION')!,
+            forcePathStyle: true,
             endpoint: this.configService.get<string>('AWS_ENDPOINT')!,
             credentials: {
                 accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID')!,
                 secretAccessKey: this.configService.get<string>('AWS_SECRET_ACCESS_KEY')!,
+
             },
+            region: this.configService.get<string>('AWS_REGION')!,
+
+
         });
     }
 
@@ -188,6 +192,25 @@ export class UserService {
                 Body: file.buffer,
                 ContentType: file.mimetype,
             }));
+
+            await this.drizzleService.db.update(databaseSchema.users)
+                .set({
+                    benefitCard: fileKey,
+                })
+                .where(eq(databaseSchema.users.extAuthId, uid))
+
+            return fileKey
+
+        } catch (error) {
+            console.log(error)
+            throw error
+        }
+    }
+
+    //This is for testing purposes
+    async uploadBenefitCardMock(uid: string, file: Express.Multer.File): Promise<String> {
+        try {
+            const fileKey = `${uid}/${uuidv4()}_${file.originalname}`;
 
             await this.drizzleService.db.update(databaseSchema.users)
                 .set({

@@ -12,7 +12,6 @@ export class FirebaseAuthGuard implements CanActivate {
 
     async validateRequest(req: any): Promise<boolean> {
         const token = req.headers.authorization;
-        console.log(req.headers.authorization);
 
         if (token != null && token != '') {
             try {
@@ -20,7 +19,6 @@ export class FirebaseAuthGuard implements CanActivate {
                     .auth()
                     .verifyIdToken(token.replace('Bearer ', ''));
 
-                console.log(decodedToken);
 
                 const user = {
                     uid: decodedToken.uid,
@@ -28,7 +26,6 @@ export class FirebaseAuthGuard implements CanActivate {
                 };
                 req.user = user;
             } catch (_) {
-                console.log(_)
                 return false;
             }
             return true;

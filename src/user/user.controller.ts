@@ -80,13 +80,13 @@ export class UserController {
         })
     }
 
-
+    @UseGuards(FirebaseAuthGuard)
     @Post('upload-benefit-card')
     @UseInterceptors(FileInterceptor('file', { fileFilter: documentFileFilter }))
     async uploadBenefitCard(
         @UploadedFile() documentFile: Express.Multer.File,
         @CurrentUser() user: RequestUser
     ) {
-        return this.userService.uploadBenefitCard(user.uid, documentFile)
+        return this.userService.uploadBenefitCardMock(user.uid, documentFile)
     }
 }
