@@ -16,7 +16,7 @@ interface CreateUserParams {
     phoneNumber: string,
     accessCode: string,
     password?: string
-    requestUser?: RequestUser
+    uid?: string
 }
 
 interface AddUserBenefitsDetailsParams {
@@ -35,12 +35,13 @@ export class UserService {
         private readonly configService: ConfigService,
 
     ) {
-        this.bucketName = this.configService.get<string>('BLINKY_AWS_BUCKET_NAME')!;
+        this.bucketName = this.configService.get<string>('AWS_BUCKET_NAME')!;
         this.s3Client = new S3Client({
-            region: this.configService.get<string>('BLINKY_AWS_REGION')!,
+            region: this.configService.get<string>('AWS_REGION')!,
+            endpoint: this.configService.get<string>('AWS_ENDPOINT')!,
             credentials: {
-                accessKeyId: this.configService.get<string>('BLINKY_AWS_ACCESS_KEY_ID')!,
-                secretAccessKey: this.configService.get<string>('BLINKY_AWS_SECRET_ACCESS_KEY')!,
+                accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID')!,
+                secretAccessKey: this.configService.get<string>('AWS_SECRET_ACCESS_KEY')!,
             },
         });
     }
@@ -52,25 +53,58 @@ export class UserService {
     }
 
 
-    async createUser(params: CreateUserParams) {
-
+    async createSocialLoginAccount(uid: string, email: string) {
         try {
-            const { uid } = params?.requestUser ?? await this.firebaseService.defaultApp.auth().createUser({
-                email: params.email,
-                password: params.password,
-            })
-
-            const [user] = await this.drizzleService.db.insert(databaseSchema.users)
+            const [socialLoginUser] = await this.drizzleService.db.insert(databaseSchema.users)
                 .values({
                     extAuthId: uid,
-                    email: params.email,
-                    firstName: params.firstName,
-                    lastName: params.lastName,
-                    phoneNumber: params.phoneNumber,
-                    accessCode: params.accessCode
+                    email: email,
                 }).returning()
 
-            return user
+            return socialLoginUser
+        } catch (error) {
+            console.log(error)
+            throw error
+        }
+    }
+
+    async createUserAccount(params: CreateUserParams) {
+
+        try {
+            const uid = params.uid ?? (await this.firebaseService.defaultApp.auth().createUser({
+                email: params.email,
+                password: params.password,
+            })).uid
+
+            const existingUser = await this.drizzleService.db.query.users.findFirst({ where: (fields, { eq }) => eq(fields.extAuthId, uid) })
+
+            if (existingUser) {
+
+                const [updatedUser] = await this.drizzleService.db.update(databaseSchema.users)
+                    .set({
+                        firstName: params.firstName,
+                        lastName: params.lastName,
+                        phoneNumber: params.phoneNumber,
+                        accessCode: params.accessCode
+                    })
+                    .where(eq(databaseSchema.users.extAuthId, uid))
+                    .returning()
+
+                return updatedUser
+
+            } else {
+                const [user] = await this.drizzleService.db.insert(databaseSchema.users)
+                    .values({
+                        extAuthId: uid,
+                        email: params.email,
+                        firstName: params.firstName,
+                        lastName: params.lastName,
+                        phoneNumber: params.phoneNumber,
+                        accessCode: params.accessCode
+                    }).returning()
+
+                return user
+            }
 
         } catch (error) {
             console.log(error)
@@ -79,16 +113,27 @@ export class UserService {
     }
 
 
-    async getUserByExtAuthId(extAuthId: string) {
-        const user = await this.drizzleService.db.query.users.findFirst({ where: (fields, { eq }) => eq(fields.extAuthId, extAuthId) })
-        if (!user) {
-            throw new NotFoundException()
+    async getUserByExtAuthId(extAuthId: string, email: string) {
+        try {
+            const user = await this.drizzleService.db.query.users.findFirst({ where: (fields, { eq }) => eq(fields.extAuthId, extAuthId) })
+            if (!user) {
+                // Then user likely using a social login account
+                const [socailLoginAccount] = await this.drizzleService.db.insert(databaseSchema.users)
+                    .values({
+                        extAuthId: extAuthId,
+                        email: email
+                    })
+                    .returning()
+                return socailLoginAccount
+            }
+            return user
+        } catch (e) {
+            throw new InternalServerErrorException('Error in getting user')
         }
-        return user
     }
 
 
-    async addBenefitsDeatails(params: AddUserBenefitsDetailsParams) {
+    async addBenefitsDetails(params: AddUserBenefitsDetailsParams) {
         try {
             const [updatedUser] = await this.drizzleService.db.update(databaseSchema.users)
                 .set({
@@ -108,7 +153,7 @@ export class UserService {
 
     async getBenefitCardDownloadUrl(uid: string): Promise<string> {
         try {
-            const user = await this.getUserByExtAuthId(uid)
+            const user = await this.drizzleService.db.query.users.findFirst({ where: (fields, { eq }) => eq(fields.extAuthId, uid) })
 
             if (!user || !user.benefitCard) {
                 throw new NotFoundException('Benefit card not found');

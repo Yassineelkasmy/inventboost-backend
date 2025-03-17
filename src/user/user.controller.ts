@@ -47,17 +47,20 @@ export class UserController {
             accessCode: string,
             password?: string
             uid?: string
-
         },
 
     ) {
-        return this.userService.createUser(req)
+        return this.userService.createUserAccount({
+            ...req,
+
+        })
     }
+
 
     @UseGuards(FirebaseAuthGuard)
     @Get()
     async getCurerentUser(@CurrentUser() user: RequestUser) {
-        return this.userService.getUserByExtAuthId(user.uid)
+        return this.userService.getUserByExtAuthId(user.uid, user.email)
     }
 
 
@@ -71,7 +74,7 @@ export class UserController {
         },
         @CurrentUser() user: RequestUser
     ) {
-        return this.userService.addBenefitsDeatails({
+        return this.userService.addBenefitsDetails({
             ...req,
             uid: user.uid,
         })
